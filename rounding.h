@@ -16,7 +16,7 @@
     extern t f (int mode, t x, t y);
 
 // invoke the rounding "X-Macro"
-#include "rounding.inc"
+#include "rounding-inc.h"
 
 #undef UNARY_T
 #undef BINARY_T

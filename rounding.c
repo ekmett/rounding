@@ -24,5 +24,5 @@
         return result; \
     }
         
-#include "rounding.inc"
+#include "rounding-inc.h"
 
