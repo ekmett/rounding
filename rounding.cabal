@@ -15,3 +15,4 @@ Library
   Build-depends:   base >= 4 && < 5,
                    array >= 0.3.0 && < 0.4
   C-Sources:       rounding.c
+  Extra-Source-Files: rounding.inc rounding.h
