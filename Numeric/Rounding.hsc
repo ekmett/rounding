@@ -3,7 +3,6 @@ module Numeric.Rounding
     ( Round(..)
     , Rounding
     , Precision
-    , C
     , Up, Down, Trunc, ToNearest
     , up, down, trunc
     , runUp, runDown, runTrunc
@@ -16,6 +15,7 @@ import Data.Traversable
 import Data.Array
 import Foreign
 import Foreign.C.Types
+import Numeric.Extras
 
 #include <math.h>
 #include <fenv.h>
@@ -74,8 +74,7 @@ instance Rounding Down where
 type U a = CInt -> C a -> C a 
 type B a = CInt -> C a -> C a -> C a 
 
-class (Storable (C a), RealFloat (C a), RealFloat a, Enum a) => Precision a where
-    type C a :: *
+class (RealFloat a, RealExtras a, Enum a) => Precision a where
     ops :: Round m a -> Ops a
     lift1 :: Rounding m => (Ops a -> U a) -> Round m a -> Round m a 
     lift2 :: Rounding m => (Ops a -> B a) -> Round m a -> Round m a -> Round m a
@@ -104,11 +103,15 @@ data Ops a = Ops
     , pacosh :: U a 
     , patanh :: U a
     , patan2 :: B a
---  , pfmod :: B a 
+    , pfmod :: B a 
+    , plog1p :: U a 
+    , pexpm1 :: U a
+    , phypot :: B a
+    , pcbrt :: U a
+    , perf :: U a 
     }
 
 instance Precision Double where
-    type C Double = CDouble
     lift1 f r@(Round x) = Round (realToFrac (f (ops r) (mode r) (realToFrac x)))
     lift2 f r@(Round x) (Round y) = Round (realToFrac (f (ops r) (mode r) (realToFrac x) (realToFrac y)))
     ops _ = Ops 
@@ -135,11 +138,16 @@ instance Precision Double where
         , pacosh = macosh
         , patanh = matanh
         , patan2 = matan2
-      --, pfmod = mfmod
+        , pfmod = mfmod
+        , plog1p = mlog1p
+        , pexpm1 = mexpm1
+        , phypot = mhypot
+        , pcbrt = mcbrt
+        , perf = merf
         }
 
+
 instance Precision Float where
-    type C Float = CFloat
     lift1 f r@(Round x) = Round (realToFrac (f (ops r) (mode r) (realToFrac x)))
     lift2 f r@(Round x) (Round y) = Round (realToFrac (f (ops r) (mode r) (realToFrac x) (realToFrac y)))
     ops _ = Ops 
@@ -166,7 +174,12 @@ instance Precision Float where
         , pacosh = macoshf
         , patanh = matanhf
         , patan2 = matan2f
-      --, pfmod = mfmodf
+        , pfmod = mfmodf
+        , plog1p = mlog1pf
+        , pexpm1 = mexpm1f
+        , phypot = mhypotf
+        , pcbrt = mcbrtf
+        , perf = merff
         }
 
 instance (Rounding d, Precision a) => Num (Round d a) where
@@ -236,6 +249,15 @@ instance (Rounding d, Precision a) => RealFloat (Round d a) where
     isNegativeZero (Round a) = isNegativeZero a
     isIEEE (Round a) = isIEEE a
     atan2 = lift2 patan2
+
+instance (Rounding d, Precision a) => RealExtras (Round d a) where
+    type C (Round d a) = C a
+    fmod = lift2 pfmod
+    expm1 = lift1 pexpm1
+    log1p = lift1 plog1p
+    hypot = lift2 phypot
+    cbrt  = lift1 pcbrt
+    erf   = lift1 perf
 
 -- * Fractional 
 
@@ -343,6 +365,8 @@ runTrunc (Round a) = a
 {-# INLINE runTrunc #-}
 
 
+
+
 foreign import ccall "rounding.h &pi_d_l"
     pi_d_l :: Ptr CDouble
 foreign import ccall "rounding.h &pi_d_u"
@@ -389,6 +413,18 @@ foreign import ccall unsafe "rounding.h matanh"
     matanh :: CInt -> CDouble -> CDouble
 foreign import ccall unsafe "rounding.h matan2"
     matan2 :: CInt -> CDouble -> CDouble -> CDouble
+foreign import ccall unsafe "rounding.h mfmod"
+    mfmod :: CInt -> CDouble -> CDouble -> CDouble
+foreign import ccall unsafe "rounding.h mlog1p"
+    mlog1p :: CInt -> CDouble -> CDouble
+foreign import ccall unsafe "rounding.h mexpm1"
+    mexpm1 :: CInt -> CDouble -> CDouble
+foreign import ccall unsafe "rounding.h mhypot"
+    mhypot :: CInt -> CDouble -> CDouble -> CDouble
+foreign import ccall unsafe "rounding.h mcbrt"
+    mcbrt :: CInt -> CDouble -> CDouble
+foreign import ccall unsafe "rounding.h merf"
+    merf :: CInt -> CDouble -> CDouble
 
 foreign import ccall "rounding.h &pi_f_l"
     pi_f_l :: Ptr CFloat
@@ -436,3 +472,15 @@ foreign import ccall unsafe "rounding.h matanhf"
     matanhf :: CInt -> CFloat -> CFloat
 foreign import ccall unsafe "rounding.h matan2f"
     matan2f :: CInt -> CFloat -> CFloat -> CFloat
+foreign import ccall unsafe "rounding.h matan2f"
+    mfmodf :: CInt -> CFloat -> CFloat -> CFloat
+foreign import ccall unsafe "rounding.h mlog1pf"
+    mlog1pf :: CInt -> CFloat -> CFloat
+foreign import ccall unsafe "rounding.h mexpm1f"
+    mexpm1f :: CInt -> CFloat -> CFloat
+foreign import ccall unsafe "rounding.h mhypotf"
+    mhypotf :: CInt -> CFloat -> CFloat -> CFloat
+foreign import ccall unsafe "rounding.h mcbrtf"
+    mcbrtf :: CInt -> CFloat -> CFloat
+foreign import ccall unsafe "rounding.h merff"
+    merff :: CInt -> CFloat -> CFloat
