@@ -39,68 +39,37 @@ instance Traversable (Round dir) where
 class Rounding dir where
     mode :: Round dir a -> CInt
     rounding :: (Integral b, RealFrac a) => Round dir c -> (a -> b)
+    pi_f :: Round dir Float
+    pi_d :: Round dir Double
 
 data ToNearest
 data TowardZero
 data Up
 data Down
 
-up :: a -> Round Up a 
-up = Round
-{-# INLINE up #-}
-
-down :: a -> Round Down a
-down = Round
-{-# INLINE down #-}
-
-towardZero :: a -> Round TowardZero a 
-towardZero = Round
-{-# INLINE towardZero #-}
-
-toNearest :: a -> Round ToNearest a
-toNearest = Round
-{-# INLINE toNearest #-}
-
-runUp :: Round Up a -> a
-runUp (Round a) = a
-{-# INLINE runUp #-}
-
-runDown :: Round Down a -> a
-runDown (Round a) = a
-{-# INLINE runDown #-}
-
-runTowardZero :: Round TowardZero a -> a
-runTowardZero (Round a) = a
-{-# INLINE runTowardZero #-}
-
-runToNearest :: Round ToNearest a -> a
-runToNearest (Round a) = a
-{-# INLINE runToNearest #-}
-
-double :: Double -> Double
-double = id
-{-# INLINE double #-}
-
-float :: Float -> Float
-float = id
-{-# INLINE float #-}
-
-
 instance Rounding ToNearest where 
     mode _ = #const FE_TONEAREST
     rounding _ = round
+    pi_f = Round pi
+    pi_d = Round pi
 
 instance Rounding TowardZero where 
     mode _ = #const FE_TOWARDZERO
     rounding _ = truncate
+    pi_f = Round (realToFrac pi_f_l)
+    pi_d = Round (realToFrac pi_d_l)
 
 instance Rounding Up where 
     mode _ = #const FE_UPWARD
     rounding _ = ceiling
+    pi_f = Round (realToFrac pi_f_u)
+    pi_d = Round (realToFrac pi_d_u)
 
 instance Rounding Down where 
     mode _ = #const FE_DOWNWARD
     rounding _ = floor
+    pi_f = Round (realToFrac pi_f_l)
+    pi_d = Round (realToFrac pi_d_l)
 
 -- * Rounded Doubles
 
@@ -114,6 +83,10 @@ lift2D :: Rounding m =>
           Round m Double -> Round m Double -> Round m Double
 lift2D f r@(Round x) (Round y) = Round (realToFrac (f (mode r) (realToFrac x) (realToFrac y)))
 
+foreign import ccall unsafe "rounding.h pi_d_l"
+    pi_d_l :: CDouble
+foreign import ccall unsafe "rounding.h pi_d_u"
+    pi_d_u :: CDouble
 foreign import ccall unsafe "rounding.h madd" 
     madd :: CInt -> CDouble -> CDouble -> CDouble
 foreign import ccall unsafe "rounding.h mminus" 
@@ -181,7 +154,7 @@ instance Rounding dir => Enum (Round dir Double) where
     enumFromThenTo = numericEnumFromThenTo
     
 instance Rounding dir => Floating (Round dir Double) where
-    pi = Round pi -- TODO twiddle LSB
+    pi = pi_d
     exp = lift1D mexp
     (**) = lift2D mpow
     log = lift1D mlog
@@ -237,6 +210,10 @@ lift2F :: Rounding m =>
           Round m Float -> Round m Float -> Round m Float
 lift2F f r@(Round x) (Round y) = Round (realToFrac (f (mode r) (realToFrac x) (realToFrac y)))
 
+foreign import ccall unsafe "rounding.h pi_f_l"
+    pi_f_l :: CFloat
+foreign import ccall unsafe "rounding.h pi_f_u"
+    pi_f_u :: CFloat
 foreign import ccall unsafe "rounding.h madd" 
     maddf :: CInt -> CFloat -> CFloat -> CFloat
 foreign import ccall unsafe "rounding.h mminus" 
@@ -304,7 +281,7 @@ instance Rounding dir => Enum (Round dir Float) where
     enumFromThenTo = numericEnumFromThenTo
     
 instance Rounding dir => Floating (Round dir Float) where
-    pi = Round pi -- TODO twiddle LSB
+    pi = pi_f
     exp = lift1F mexpf
     (**) = lift2F mpowf
     log = lift1F mlogf
@@ -426,4 +403,44 @@ integerLogBase b i
          doDiv x y
             | x < b     = y
             | otherwise = doDiv (x `div` b) (y+1)
+
+up :: a -> Round Up a 
+up = Round
+{-# INLINE up #-}
+
+down :: a -> Round Down a
+down = Round
+{-# INLINE down #-}
+
+towardZero :: a -> Round TowardZero a 
+towardZero = Round
+{-# INLINE towardZero #-}
+
+toNearest :: a -> Round ToNearest a
+toNearest = Round
+{-# INLINE toNearest #-}
+
+runUp :: Round Up a -> a
+runUp (Round a) = a
+{-# INLINE runUp #-}
+
+runDown :: Round Down a -> a
+runDown (Round a) = a
+{-# INLINE runDown #-}
+
+runTowardZero :: Round TowardZero a -> a
+runTowardZero (Round a) = a
+{-# INLINE runTowardZero #-}
+
+runToNearest :: Round ToNearest a -> a
+runToNearest (Round a) = a
+{-# INLINE runToNearest #-}
+
+double :: Double -> Double
+double = id
+{-# INLINE double #-}
+
+float :: Float -> Float
+float = id
+{-# INLINE float #-}
 

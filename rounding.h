@@ -23,3 +23,9 @@
 #undef INFIX_T
 
 #endif
+
+extern const float pi_f_l;
+extern const float pi_f_u;
+extern const double pi_d_l;
+extern const double pi_d_u;
+
